@@ -1,0 +1,19 @@
+models:
+    specify: claude-sonnet-4.6
+    plan: claude-sonnet-4.6
+    tasks: claude-sonnet-4.6
+    implement: gpt-5.3-codex
+    review: gemini-3-pro-review
+    fix: gemini-3-pro-review
+git:
+    base_branch: develop
+docker:
+    image: mcr.microsoft.com/devcontainers/base:alpine
+    features:
+        - ghcr.io/devcontainers/features/python:1
+worktrees:
+    base_path: ../.worktrees
+review:
+    max_iterations: 10
+    template_path: ""
+    agent_path: .github/agents/review-python.agent.md

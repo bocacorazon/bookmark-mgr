@@ -14,7 +14,7 @@ dependencies = [
 [project.scripts]
 bookmarkcli = "bookmarkcli.cli:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "aiosqlite>=0.20",

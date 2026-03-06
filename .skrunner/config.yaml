@@ -3,10 +3,10 @@ models:
     plan: claude-sonnet-4.6
     tasks: claude-sonnet-4.6
     implement: gpt-5.3-codex
-    review: gemini-3-pro-review
-    fix: gemini-3-pro-review
+    review: gemini-3-pro-preview
+    fix: gemini-3-pro-preview
 git:
-    base_branch: develop
+    base_branch: main
 docker:
     image: mcr.microsoft.com/devcontainers/base:alpine
     features:

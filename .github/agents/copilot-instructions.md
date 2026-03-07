@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-07
 ## Active Technologies
 - N/A for S00 (aiosqlite declared for future use, not exercised) (001-project-scaffold)
 - N/A (SQLite via aiosqlite declared for future features; no schema in S00) (001-project-scaffold)
+- Python ≥ 3.11 + `sqlite3` (stdlib) — no new runtime packages required; `pytest ≥ 8.0` (dev, already declared) (002-data-model-storage)
+- SQLite (hard constraint per spec) — single-file database managed via stdlib `sqlite3` (002-data-model-storage)
 
 - Python ≥ 3.11 + Click ≥ 8.0 (runtime); pytest ≥ 8.0, aiosqlite ≥ 0.20 (dev) (001-project-scaffold)
 
@@ -24,10 +26,10 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python ≥ 3.11: Follow standard conventions
 
 ## Recent Changes
+- 002-data-model-storage: Added Python ≥ 3.11 + `sqlite3` (stdlib) — no new runtime packages required; `pytest ≥ 8.0` (dev, already declared)
 - 001-project-scaffold: Added Python ≥ 3.11 + Click ≥ 8.0 (runtime); pytest ≥ 8.0, aiosqlite ≥ 0.20 (dev)
 - 001-project-scaffold: Added Python ≥ 3.11 + Click ≥ 8.0 (runtime); pytest ≥ 8.0, aiosqlite ≥ 0.20 (dev)
 
-- 001-project-scaffold: Added Python ≥ 3.11 + Click ≥ 8.0 (runtime); pytest ≥ 8.0, aiosqlite ≥ 0.20 (dev)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

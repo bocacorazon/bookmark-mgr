@@ -160,6 +160,8 @@ class BookmarkStore:
     ) -> list[Bookmark]:
         if sort not in {"date", "title", "url"}:
             raise ValueError(f"invalid sort value: {sort}")
+        if limit is not None and limit < 1:
+            raise ValueError(f"invalid limit value: {limit}")
 
         con = self._require_connection()
         query = """

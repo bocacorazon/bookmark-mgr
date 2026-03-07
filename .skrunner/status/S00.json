@@ -4,8 +4,8 @@
   "full_name": "S00",
   "track": "",
   "branch": "S00",
-  "status": "RUNNING",
+  "status": "COMPLETED",
   "started_at": "2026-03-07T18:02:18Z",
-  "review_iterations": 2,
-  "last_error": "merge 001-project-scaffold into main: git [merge --ff-only 001-project-scaffold] failed: exit status 1: error: The following untracked working tree files would be overwritten by merge:\n\t.github/agents/skrunner.review.agent.md\nPlease move or remove them before you merge.\nAborting\nUpdating 60e22e5..18ba663\n"
+  "completed_at": "2026-03-07T18:12:51Z",
+  "review_iterations": 2
 }

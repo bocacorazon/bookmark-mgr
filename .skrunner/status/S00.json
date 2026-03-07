@@ -4,8 +4,8 @@
   "full_name": "S00",
   "track": "",
   "branch": "S00",
-  "status": "REVIEW_FAILED",
-  "started_at": "2026-03-06T11:44:30Z",
+  "status": "FAILED",
+  "started_at": "2026-03-07T15:41:14Z",
   "review_iterations": 1,
-  "last_error": "maximum review iterations exceeded\nphase Review failed for S00: copilot [-p /skrunner.review\nSpec ID: S00\nSpec Name: Project Scaffold\nDescription: Python project scaffold: pyproject.toml, src/bookmarkcli/, tests/, SQLite dev dependencies, Click, pytest. Must pass pytest with zero tests collected.\nRepository Root: /home/marcos/Projects/bookmark-mgr\n\nReview Agent Context:\n---\ndescription: Project-specific SKRunner review agent\n---\n\n\n\nMANDATORY REVIEW MODE RULES:\n- REVIEW_ONLY mode is enforced for this review pass.\n- Do NOT modify files, apply patches, or perform any write operation.\n- If fixes are requested, provide findings plus an AUTOFIX_HANDOFF section only.\n- Output MUST follow the required structured review schema. --allow-all-tools --allow-all-paths --allow-all-urls -s --model gemini-3-pro-review] failed: exit status 1\nmissing required header: ## Review Summary"
+  "last_error": "phase Specify failed for S00: copilot [--agent=speckit.specify --prompt Spec ID: S00\nSpec Name: Project Scaffold\nDescription: Python project scaffold: pyproject.toml, src/bookmarkcli/, tests/, SQLite dev dependencies, Click, pytest. Must pass pytest with zero tests collected.\nRepository Root: /home/marcos/Projects/bookmark-mgr\nWorking Directory: /home/marcos/Projects/.worktrees/S00\n --allow-all-tools --allow-all-paths --allow-all-urls -s --model claude-sonnet-4.6] failed: exit status 1 (output: No such agent: speckit.specify, available: review-python)"
 }

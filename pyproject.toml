@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bookmarkcli"
+name = "bookmark-mgr"
 version = "0.1.0"
 description = "A CLI bookmark manager"
 requires-python = ">=3.11"
@@ -25,4 +25,3 @@ packages = ["src/bookmarkcli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]

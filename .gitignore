@@ -1,9 +1,19 @@
 .DS_Store
+Thumbs.db
 .obsidian
-.vscode
-.idea
+.vscode/
+.idea/
 *.log
 *.tmp
 *.bak
 *.swp
 *.swo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+*.egg-info/
+.pytest_cache/

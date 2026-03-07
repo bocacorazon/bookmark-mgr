@@ -5,7 +5,7 @@
   "track": "",
   "branch": "S00",
   "status": "FAILED",
-  "started_at": "2026-03-07T15:41:14Z",
+  "started_at": "2026-03-07T15:57:02Z",
   "review_iterations": 1,
-  "last_error": "phase Specify failed for S00: copilot [--agent=speckit.specify --prompt Spec ID: S00\nSpec Name: Project Scaffold\nDescription: Python project scaffold: pyproject.toml, src/bookmarkcli/, tests/, SQLite dev dependencies, Click, pytest. Must pass pytest with zero tests collected.\nRepository Root: /home/marcos/Projects/bookmark-mgr\nWorking Directory: /home/marcos/Projects/.worktrees/S00\n --allow-all-tools --allow-all-paths --allow-all-urls -s --model claude-sonnet-4.6] failed: exit status 1 (output: No such agent: speckit.specify, available: review-python)"
+  "last_error": "required agents not found for S00: missing=speckit.specify,speckit.plan,speckit.tasks,speckit.implement,skrunner.review available=review-python (expected under /home/marcos/Projects/.worktrees/S00/.github/agents)"
 }

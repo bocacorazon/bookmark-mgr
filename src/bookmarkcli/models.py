@@ -26,3 +26,7 @@ class BookmarkNotFoundError(Exception):
 
 class BookmarkValidationError(Exception):
     """Raised when bookmark input data is invalid."""
+
+
+class DuplicateBookmarkError(Exception):
+    """Raised when attempting to add a URL that already exists."""

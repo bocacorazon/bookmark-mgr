@@ -133,6 +133,31 @@ def test_get_nonexistent_raises_bookmark_not_found_error(store: BookmarkStore) -
         store.get(9999)
 
 
+def test_find_by_url_returns_matching_bookmark(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/find-me", title="Find Me")
+
+    found = store.find_by_url("https://example.com/find-me")
+
+    assert found is not None
+    assert found.id == created.id
+    assert found.url == created.url
+    assert found.title == created.title
+
+
+def test_find_by_url_returns_none_when_url_missing(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/existing")
+
+    found = store.find_by_url("https://example.com/missing")
+
+    assert found is None
+
+
+def test_find_by_url_returns_none_for_empty_store(store: BookmarkStore) -> None:
+    found = store.find_by_url("https://example.com/empty")
+
+    assert found is None
+
+
 def test_list_all_empty_store_returns_empty_list(store: BookmarkStore) -> None:
     bookmarks = store.list_all()
 

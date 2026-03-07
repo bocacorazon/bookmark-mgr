@@ -127,6 +127,20 @@ class BookmarkStore:
             raise BookmarkNotFoundError(f"Bookmark {bookmark_id} not found")
         return self._row_to_bookmark(row)
 
+    def find_by_url(self, url: str) -> Bookmark | None:
+        con = self._require_connection()
+        row = con.execute(
+            """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+            WHERE url = ?
+            """,
+            (url,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_bookmark(row)
+
     def list_all(self) -> list[Bookmark]:
         con = self._require_connection()
         rows = con.execute(

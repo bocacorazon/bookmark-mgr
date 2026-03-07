@@ -152,6 +152,69 @@ class BookmarkStore:
         ).fetchall()
         return [self._row_to_bookmark(row) for row in rows]
 
+    def list_filtered(
+        self,
+        tag: str | None = None,
+        limit: int | None = None,
+        sort: str = "date",
+    ) -> list[Bookmark]:
+        if sort not in {"date", "title", "url"}:
+            raise ValueError(f"invalid sort value: {sort}")
+        if limit is not None and limit < 1:
+            raise ValueError(f"invalid limit value: {limit}")
+
+        con = self._require_connection()
+        query = """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+        """
+        params: list[object] = []
+        if tag is not None:
+            query += """
+            WHERE
+                tags = ?
+                OR tags LIKE ? || ',%'
+                OR tags LIKE '%,' || ?
+                OR tags LIKE '%,' || ? || ',%'
+            """
+            params.extend([tag, tag, tag, tag])
+
+        query += """
+            ORDER BY
+                CASE WHEN ? = 'title' THEN title IS NULL END ASC,
+                CASE WHEN ? = 'title' THEN LOWER(title) END ASC,
+                CASE WHEN ? = 'url' THEN url END ASC,
+                CASE WHEN ? = 'date' THEN created_at END DESC,
+                created_at DESC
+        """
+        params.extend([sort, sort, sort, sort])
+
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        rows = con.execute(query, tuple(params)).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
+    @staticmethod
+    def _escape_like(query: str) -> str:
+        return query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    def search(self, query: str) -> list[Bookmark]:
+        con = self._require_connection()
+        escaped_query = self._escape_like(query)
+        rows = con.execute(
+            """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+            WHERE LOWER(title) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
+               OR LOWER(url) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
+            ORDER BY created_at DESC
+            """,
+            (escaped_query, escaped_query),
+        ).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
     def update(
         self,
         bookmark_id: int,

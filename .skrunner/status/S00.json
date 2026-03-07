@@ -4,8 +4,8 @@
   "full_name": "S00",
   "track": "",
   "branch": "S00",
-  "status": "FAILED",
-  "started_at": "2026-03-07T15:57:02Z",
-  "review_iterations": 1,
-  "last_error": "required agents not found for S00: missing=speckit.specify,speckit.plan,speckit.tasks,speckit.implement,skrunner.review available=review-python (expected under /home/marcos/Projects/.worktrees/S00/.github/agents)"
+  "status": "COMPLETED",
+  "started_at": "2026-03-07T18:02:18Z",
+  "completed_at": "2026-03-07T18:12:51Z",
+  "review_iterations": 2
 }

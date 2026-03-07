@@ -26,3 +26,16 @@ class BookmarkNotFoundError(Exception):
 
 class BookmarkValidationError(Exception):
     """Raised when bookmark input data is invalid."""
+
+
+class TagNotFoundError(Exception):
+    """Raised when attempting to remove a tag not present on a bookmark."""
+
+
+class TagValidationError(Exception):
+    """Raised when a tag is empty or whitespace after normalization."""
+
+
+def normalize_tag(tag: str) -> str:
+    """Return tag stripped of surrounding whitespace and converted to lowercase."""
+    return tag.strip().lower()

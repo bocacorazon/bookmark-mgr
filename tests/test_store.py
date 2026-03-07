@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from bookmarkcli.models import MISSING, BookmarkNotFoundError, BookmarkValidationError
+from bookmarkcli.models import (
+    MISSING,
+    BookmarkNotFoundError,
+    BookmarkValidationError,
+    TagNotFoundError,
+    TagValidationError,
+)
 from bookmarkcli.store import BookmarkStore
 
 
@@ -313,3 +319,141 @@ def test_list_all_10000_records_completes_under_2s(tmp_path: Path) -> None:
 
     assert len(bookmarks) == 10_000
     assert elapsed < 2.0
+
+
+def test_add_tag_happy_path_persists_tag(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/tagged")
+
+    updated = store.add_tag(created.id or 0, "python")
+
+    assert updated.tags == ["python"]
+    assert store.get(created.id or 0).tags == ["python"]
+
+
+def test_add_tag_idempotent_when_tag_already_present(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/idempotent", tags=["python"])
+
+    updated = store.add_tag(created.id or 0, "python")
+
+    assert updated.tags == ["python"]
+    assert store.get(created.id or 0).tags == ["python"]
+
+
+def test_add_tag_raises_bookmark_not_found_for_missing_id(store: BookmarkStore) -> None:
+    with pytest.raises(BookmarkNotFoundError):
+        store.add_tag(9999, "python")
+
+
+def test_add_tag_raises_tag_validation_error_for_whitespace(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/invalid-tag")
+
+    with pytest.raises(TagValidationError):
+        store.add_tag(created.id or 0, "   ")
+
+
+def test_add_tag_normalizes_case_and_whitespace(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/normalize")
+
+    updated = store.add_tag(created.id or 0, "  PyThOn  ")
+
+    assert updated.tags == ["python"]
+
+
+def test_remove_tag_happy_path_removes_tag(store: BookmarkStore) -> None:
+    created = store.create(
+        url="https://example.com/remove", tags=["python", "web", "cli"]
+    )
+
+    updated = store.remove_tag(created.id or 0, "python")
+
+    assert updated.tags == ["web", "cli"]
+    assert store.get(created.id or 0).tags == ["web", "cli"]
+
+
+def test_remove_tag_raises_tag_not_found_if_absent(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/no-java", tags=["python"])
+
+    with pytest.raises(TagNotFoundError):
+        store.remove_tag(created.id or 0, "java")
+
+
+def test_remove_tag_raises_bookmark_not_found_for_missing_id(store: BookmarkStore) -> None:
+    with pytest.raises(BookmarkNotFoundError):
+        store.remove_tag(9999, "python")
+
+
+def test_remove_tag_raises_tag_validation_error_for_whitespace(
+    store: BookmarkStore,
+) -> None:
+    created = store.create(url="https://example.com/invalid-remove", tags=["python"])
+
+    with pytest.raises(TagValidationError):
+        store.remove_tag(created.id or 0, "   ")
+
+
+def test_remove_tag_normalizes_case_and_whitespace(store: BookmarkStore) -> None:
+    created = store.create(url="https://example.com/normalize-remove", tags=["python"])
+
+    updated = store.remove_tag(created.id or 0, "  PyThOn  ")
+
+    assert updated.tags == []
+
+
+def test_remove_tag_preserves_other_tags_on_multi_tag_bookmark(
+    store: BookmarkStore,
+) -> None:
+    created = store.create(
+        url="https://example.com/preserve", tags=["python", "docs", "web"]
+    )
+
+    updated = store.remove_tag(created.id or 0, "docs")
+
+    assert updated.tags == ["python", "web"]
+
+
+def test_list_tags_empty_store_returns_empty_list(store: BookmarkStore) -> None:
+    assert store.list_tags() == []
+
+
+def test_list_tags_single_tag(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/only-python", tags=["python"])
+
+    assert store.list_tags() == [("python", 1)]
+
+
+def test_list_tags_overlapping_tags_return_correct_counts(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/1", tags=["python"])
+    store.create(url="https://example.com/2", tags=["python", "web"])
+    store.create(url="https://example.com/3", tags=["web"])
+
+    assert store.list_tags() == [("python", 2), ("web", 2)]
+
+
+def test_list_tags_returns_alphabetical_order(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/sort", tags=["web", "python", "docs"])
+
+    assert store.list_tags() == [("docs", 1), ("python", 1), ("web", 1)]
+
+
+def test_list_tags_removed_tags_no_longer_appear(store: BookmarkStore) -> None:
+    bookmark = store.create(url="https://example.com/removed", tags=["python", "web"])
+
+    store.remove_tag(bookmark.id or 0, "python")
+
+    assert store.list_tags() == [("web", 1)]
+
+
+@pytest.mark.parametrize(
+    ("operation", "seed_tags"),
+    [("add", []), ("remove", ["python"])],
+)
+def test_all_whitespace_tag_is_rejected_for_add_and_remove(
+    store: BookmarkStore, operation: str, seed_tags: list[str]
+) -> None:
+    bookmark = store.create(url=f"https://example.com/{operation}-whitespace", tags=seed_tags)
+
+    with pytest.raises(TagValidationError):
+        if operation == "add":
+            store.add_tag(bookmark.id or 0, "    ")
+        else:
+            store.remove_tag(bookmark.id or 0, "    ")

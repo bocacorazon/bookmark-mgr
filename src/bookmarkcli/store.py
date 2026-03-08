@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from bookmarkcli.models import (
     MISSING,
@@ -135,6 +136,48 @@ class BookmarkStore:
             FROM bookmarks
             ORDER BY id ASC
             """
+        ).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
+    def list_filtered(
+        self,
+        tag: str | None = None,
+        limit: int | None = None,
+        sort: Literal["newest", "oldest"] = "newest",
+    ) -> list[Bookmark]:
+        con = self._require_connection()
+        sort_sql = {"newest": "DESC", "oldest": "ASC"}.get(sort)
+        if sort_sql is None:
+            raise ValueError("sort must be 'newest' or 'oldest'")
+
+        query = """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+        """
+        params: list[object] = []
+        if tag is not None:
+            query += " WHERE INSTR(',' || tags || ',', ',' || ? || ',') > 0"
+            params.append(tag)
+
+        query += f" ORDER BY created_at {sort_sql}"
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        rows = con.execute(query, tuple(params)).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
+    def search(self, query: str) -> list[Bookmark]:
+        con = self._require_connection()
+        rows = con.execute(
+            """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+            WHERE LOWER(COALESCE(title, '')) LIKE LOWER('%' || ? || '%')
+               OR LOWER(url) LIKE LOWER('%' || ? || '%')
+            ORDER BY created_at DESC
+            """,
+            (query, query),
         ).fetchall()
         return [self._row_to_bookmark(row) for row in rows]
 

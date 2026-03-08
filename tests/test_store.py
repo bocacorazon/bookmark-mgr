@@ -161,6 +161,101 @@ def test_list_all_ordered_by_id_ascending(store: BookmarkStore) -> None:
     assert [bookmark.id for bookmark in bookmarks] == [first.id, second.id, third.id]
 
 
+def test_list_filtered_without_args_returns_all_bookmarks(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/one", title="One", tags=["python"])
+    store.create(url="https://example.com/two", title="Two", tags=["rust"])
+
+    bookmarks = store.list_filtered()
+
+    assert len(bookmarks) == 2
+    assert {bookmark.url for bookmark in bookmarks} == {
+        "https://example.com/one",
+        "https://example.com/two",
+    }
+
+
+def test_list_filtered_tag_matches_exact_tag_only(store: BookmarkStore) -> None:
+    tagged = store.create(url="https://example.com/python", tags=["python", "cli"])
+    store.create(url="https://example.com/micro", tags=["micropython"])
+
+    bookmarks = store.list_filtered(tag="python")
+
+    assert [bookmark.id for bookmark in bookmarks] == [tagged.id]
+
+
+def test_list_filtered_limit_caps_results(store: BookmarkStore) -> None:
+    first = store.create(url="https://example.com/1")
+    time.sleep(0.001)
+    second = store.create(url="https://example.com/2")
+    time.sleep(0.001)
+    third = store.create(url="https://example.com/3")
+
+    bookmarks = store.list_filtered(limit=2, sort="oldest")
+
+    assert [bookmark.id for bookmark in bookmarks] == [first.id, second.id]
+    assert third.id not in [bookmark.id for bookmark in bookmarks]
+
+
+def test_list_filtered_sort_oldest_returns_ascending_created_at(
+    store: BookmarkStore,
+) -> None:
+    first = store.create(url="https://example.com/oldest")
+    time.sleep(0.001)
+    second = store.create(url="https://example.com/middle")
+    time.sleep(0.001)
+    third = store.create(url="https://example.com/newest")
+
+    bookmarks = store.list_filtered(sort="oldest")
+
+    assert [bookmark.id for bookmark in bookmarks] == [first.id, second.id, third.id]
+
+
+def test_list_filtered_sort_newest_returns_descending_created_at(
+    store: BookmarkStore,
+) -> None:
+    first = store.create(url="https://example.com/old")
+    time.sleep(0.001)
+    second = store.create(url="https://example.com/new")
+
+    bookmarks = store.list_filtered(sort="newest")
+
+    assert [bookmark.id for bookmark in bookmarks] == [second.id, first.id]
+
+
+def test_search_matches_title_substring(store: BookmarkStore) -> None:
+    expected = store.create(url="https://example.com/python", title="Python Docs")
+    store.create(url="https://example.com/rust", title="Rust Book")
+
+    bookmarks = store.search("thon doc")
+
+    assert [bookmark.id for bookmark in bookmarks] == [expected.id]
+
+
+def test_search_matches_url_substring(store: BookmarkStore) -> None:
+    expected = store.create(url="https://docs.python.org/3/library")
+    store.create(url="https://example.com/other")
+
+    bookmarks = store.search("python.org/3")
+
+    assert [bookmark.id for bookmark in bookmarks] == [expected.id]
+
+
+def test_search_is_case_insensitive(store: BookmarkStore) -> None:
+    expected = store.create(url="https://example.com/lower", title="python guide")
+
+    bookmarks = store.search("Python")
+
+    assert [bookmark.id for bookmark in bookmarks] == [expected.id]
+
+
+def test_search_returns_empty_list_for_no_match(store: BookmarkStore) -> None:
+    store.create(url="https://example.com/one", title="One")
+
+    bookmarks = store.search("not-found")
+
+    assert bookmarks == []
+
+
 def test_update_title_changes_stored_value(store: BookmarkStore) -> None:
     created = store.create(url="https://example.com/update-title", title="Old")
 

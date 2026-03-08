@@ -88,19 +88,31 @@ class BookmarkStore:
         url: str,
         title: str | None = None,
         tags: list[str] | None = None,
+        created_at: datetime | None = None,
     ) -> Bookmark:
         if not url or not url.strip():
             raise BookmarkValidationError("url must not be empty")
 
         con = self._require_connection()
         now = datetime.now(tz=timezone.utc)
+        created_at_value = created_at or now
+        if created_at_value.tzinfo is None:
+            created_at_value = created_at_value.replace(tzinfo=timezone.utc)
+        else:
+            created_at_value = created_at_value.astimezone(timezone.utc)
         serialized_tags = self._serialize_tags(tags)
         cursor = con.execute(
             """
             INSERT INTO bookmarks (url, title, tags, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (url, title, serialized_tags, now.isoformat(), now.isoformat()),
+            (
+                url,
+                title,
+                serialized_tags,
+                created_at_value.isoformat(),
+                now.isoformat(),
+            ),
         )
         con.commit()
         bookmark_id = cursor.lastrowid
@@ -110,7 +122,7 @@ class BookmarkStore:
         return Bookmark(
             id=int(bookmark_id),
             url=url,
-            created_at=now,
+            created_at=created_at_value,
             updated_at=now,
             title=title,
             tags=list(tags) if tags else [],
@@ -130,6 +142,20 @@ class BookmarkStore:
             raise BookmarkNotFoundError(f"Bookmark {bookmark_id} not found")
         return self._row_to_bookmark(row)
 
+    def find_by_url(self, url: str) -> Bookmark | None:
+        con = self._require_connection()
+        row = con.execute(
+            """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+            WHERE url = ?
+            """,
+            (url,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_bookmark(row)
+
     def list_all(self) -> list[Bookmark]:
         con = self._require_connection()
         rows = con.execute(
@@ -138,6 +164,69 @@ class BookmarkStore:
             FROM bookmarks
             ORDER BY id ASC
             """
+        ).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
+    def list_filtered(
+        self,
+        tag: str | None = None,
+        limit: int | None = None,
+        sort: str = "date",
+    ) -> list[Bookmark]:
+        if sort not in {"date", "title", "url"}:
+            raise ValueError(f"invalid sort value: {sort}")
+        if limit is not None and limit < 1:
+            raise ValueError(f"invalid limit value: {limit}")
+
+        con = self._require_connection()
+        query = """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+        """
+        params: list[object] = []
+        if tag is not None:
+            query += """
+            WHERE
+                tags = ?
+                OR tags LIKE ? || ',%'
+                OR tags LIKE '%,' || ?
+                OR tags LIKE '%,' || ? || ',%'
+            """
+            params.extend([tag, tag, tag, tag])
+
+        query += """
+            ORDER BY
+                CASE WHEN ? = 'title' THEN title IS NULL END ASC,
+                CASE WHEN ? = 'title' THEN LOWER(title) END ASC,
+                CASE WHEN ? = 'url' THEN url END ASC,
+                CASE WHEN ? = 'date' THEN created_at END DESC,
+                created_at DESC
+        """
+        params.extend([sort, sort, sort, sort])
+
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        rows = con.execute(query, tuple(params)).fetchall()
+        return [self._row_to_bookmark(row) for row in rows]
+
+    @staticmethod
+    def _escape_like(query: str) -> str:
+        return query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    def search(self, query: str) -> list[Bookmark]:
+        con = self._require_connection()
+        escaped_query = self._escape_like(query)
+        rows = con.execute(
+            """
+            SELECT id, url, title, tags, created_at, updated_at
+            FROM bookmarks
+            WHERE LOWER(title) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
+               OR LOWER(url) LIKE '%' || LOWER(?) || '%' ESCAPE '\\'
+            ORDER BY created_at DESC
+            """,
+            (escaped_query, escaped_query),
         ).fetchall()
         return [self._row_to_bookmark(row) for row in rows]
 

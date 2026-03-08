@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import click
 
+from bookmarkcli.csv_io import export_bookmarks, import_bookmarks
 from bookmarkcli.formatter import render_table
 from bookmarkcli.jsonport import bookmarks_to_json, import_from_json
 from bookmarkcli.models import BookmarkNotFoundError, DuplicateBookmarkError
@@ -170,27 +171,39 @@ def delete(bookmark_ref: str) -> None:
     "--format",
     "output_format",
     required=True,
-    type=click.Choice(["json"]),
+    type=click.Choice(["json", "csv"]),
 )
 @click.option("--file", "file_path", type=click.Path(path_type=Path))
 def export_command(output_format: str, file_path: Path | None) -> None:
-    del output_format
-    store = _open_json_io_store()
-    payload = bookmarks_to_json(store.list_all())
+    if output_format == "json":
+        store = _open_json_io_store()
+        payload = bookmarks_to_json(store.list_all())
 
-    if file_path is None:
-        click.echo(payload, nl=False)
+        if file_path is None:
+            click.echo(payload, nl=False)
+            return
+        if file_path.is_dir():
+            click.echo(f"Error: {file_path} is a directory", err=True)
+            raise click.exceptions.Exit(1)
+
+        try:
+            file_path.write_text(payload, encoding="utf-8")
+        except OSError as exc:
+            reason = exc.strerror or str(exc)
+            click.echo(f"Error: cannot write to {file_path}: {reason}", err=True)
+            raise click.exceptions.Exit(1)
         return
-    if file_path.is_dir():
-        click.echo(f"Error: {file_path} is a directory", err=True)
-        raise click.exceptions.Exit(1)
 
-    try:
-        file_path.write_text(payload, encoding="utf-8")
-    except OSError as exc:
-        reason = exc.strerror or str(exc)
-        click.echo(f"Error: cannot write to {file_path}: {reason}", err=True)
-        raise click.exceptions.Exit(1)
+    store = _build_store()
+    if file_path is None:
+        export_bookmarks(store.list_all(), click.get_text_stream("stdout"))
+        return
+
+    if file_path.is_dir():
+        raise click.BadParameter(f"'{file_path}' is a directory", param_hint="'--file'")
+
+    with file_path.open("w", encoding="utf-8", newline="") as destination:
+        export_bookmarks(store.list_all(), destination)
 
 
 @main.command("import")
@@ -198,7 +211,7 @@ def export_command(output_format: str, file_path: Path | None) -> None:
     "--format",
     "input_format",
     required=True,
-    type=click.Choice(["json"]),
+    type=click.Choice(["json", "csv"]),
 )
 @click.option(
     "--on-duplicate",
@@ -207,34 +220,58 @@ def export_command(output_format: str, file_path: Path | None) -> None:
     show_default=True,
 )
 @click.argument("file_path", type=click.Path(path_type=Path))
-def import_command(input_format: str, on_duplicate: str, file_path: Path) -> None:
-    del input_format
+@click.pass_context
+def import_command(
+    ctx: click.Context,
+    input_format: str,
+    on_duplicate: str,
+    file_path: Path,
+) -> None:
+    if input_format == "json":
+        if not file_path.exists():
+            click.echo(f"Error: file not found: {file_path}", err=True)
+            raise click.exceptions.Exit(1)
 
-    if not file_path.exists():
-        click.echo(f"Error: file not found: {file_path}", err=True)
-        raise click.exceptions.Exit(1)
+        try:
+            json_str = file_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            reason = exc.strerror or str(exc)
+            click.echo(f"Error: cannot read file: {file_path}: {reason}", err=True)
+            raise click.exceptions.Exit(1)
 
-    try:
-        json_str = file_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        reason = exc.strerror or str(exc)
-        click.echo(f"Error: cannot read file: {file_path}: {reason}", err=True)
-        raise click.exceptions.Exit(1)
+        store = _open_json_io_store()
+        try:
+            result = import_from_json(json_str, store, on_duplicate=on_duplicate)
+        except json.JSONDecodeError:
+            click.echo(f"Error: invalid JSON in {file_path}", err=True)
+            raise click.exceptions.Exit(1)
+        except ValueError:
+            click.echo(f"Error: invalid format in {file_path}", err=True)
+            raise click.exceptions.Exit(1)
 
-    store = _open_json_io_store()
-    try:
-        result = import_from_json(json_str, store, on_duplicate=on_duplicate)
-    except json.JSONDecodeError:
-        click.echo(f"Error: invalid JSON in {file_path}", err=True)
-        raise click.exceptions.Exit(1)
-    except ValueError:
-        click.echo(f"Error: invalid format in {file_path}", err=True)
-        raise click.exceptions.Exit(1)
+        click.echo(
+            f"Import complete: {result.added} added, {result.skipped} skipped, "
+            f"{result.updated} updated, {result.invalid} invalid."
+        )
+        return
 
-    click.echo(
-        f"Import complete: {result.added} added, {result.skipped} skipped, "
-        f"{result.updated} updated, {result.invalid} invalid."
-    )
+    if not file_path.exists() or not file_path.is_file():
+        raise click.BadParameter(f"Path '{file_path}' does not exist.", param_hint="'FILE'")
+
+    store = _build_store()
+    with file_path.open("r", encoding="utf-8", newline="") as source:
+        try:
+            result = import_bookmarks(source, store)
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            ctx.exit(1)
+
+    click.echo(f"Imported {result.imported}, skipped {result.skipped}")
+    for skipped_row in result.skipped_rows:
+        click.echo(f"  Row {skipped_row.row_number}: {skipped_row.reason}")
+
+    if result.imported == 0 and result.skipped > 0:
+        ctx.exit(1)
 
 
 if __name__ == "__main__":

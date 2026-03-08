@@ -85,19 +85,31 @@ class BookmarkStore:
         url: str,
         title: str | None = None,
         tags: list[str] | None = None,
+        created_at: datetime | None = None,
     ) -> Bookmark:
         if not url or not url.strip():
             raise BookmarkValidationError("url must not be empty")
 
         con = self._require_connection()
         now = datetime.now(tz=timezone.utc)
+        created_at_value = created_at or now
+        if created_at_value.tzinfo is None:
+            created_at_value = created_at_value.replace(tzinfo=timezone.utc)
+        else:
+            created_at_value = created_at_value.astimezone(timezone.utc)
         serialized_tags = self._serialize_tags(tags)
         cursor = con.execute(
             """
             INSERT INTO bookmarks (url, title, tags, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (url, title, serialized_tags, now.isoformat(), now.isoformat()),
+            (
+                url,
+                title,
+                serialized_tags,
+                created_at_value.isoformat(),
+                now.isoformat(),
+            ),
         )
         con.commit()
         bookmark_id = cursor.lastrowid
@@ -107,7 +119,7 @@ class BookmarkStore:
         return Bookmark(
             id=int(bookmark_id),
             url=url,
-            created_at=now,
+            created_at=created_at_value,
             updated_at=now,
             title=title,
             tags=list(tags) if tags else [],

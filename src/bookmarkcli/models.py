@@ -12,6 +12,19 @@ class Bookmark:
     tags: list[str] = field(default_factory=list)
 
 
+@dataclass
+class SkippedRow:
+    row_number: int
+    reason: str
+
+
+@dataclass
+class ImportResult:
+    imported: int
+    skipped: int
+    skipped_rows: list[SkippedRow] = field(default_factory=list)
+
+
 class _MISSING_TYPE:
     def __repr__(self) -> str:
         return "MISSING"

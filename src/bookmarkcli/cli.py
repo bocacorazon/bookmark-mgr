@@ -9,7 +9,13 @@ import click
 from bookmarkcli.csv_io import export_bookmarks, import_bookmarks
 from bookmarkcli.formatter import render_table
 from bookmarkcli.jsonport import bookmarks_to_json, import_from_json
-from bookmarkcli.models import BookmarkNotFoundError, DuplicateBookmarkError
+from bookmarkcli.models import (
+    BookmarkNotFoundError,
+    DuplicateBookmarkError,
+    TagNotFoundError,
+    TagValidationError,
+    normalize_tag,
+)
 from bookmarkcli.store import BookmarkStore
 
 DEFAULT_DB_PATH = Path.home() / ".bookmarkcli" / "bookmarks.db"
@@ -20,6 +26,11 @@ def _get_db_path() -> Path:
     db_env = os.environ.get("BOOKMARKCLI_DB")
     if db_env:
         return Path(db_env)
+
+    db_path_env = os.environ.get("BOOKMARKCLI_DB_PATH")
+    if db_path_env:
+        return Path(db_path_env)
+
     return DEFAULT_DB_PATH
 
 
@@ -35,6 +46,18 @@ def _open_json_io_store() -> BookmarkStore:
     store = BookmarkStore(db_path=JSON_IO_DB_PATH)
     store.initialize()
     return store
+
+
+def _raise_usage_error(message: str) -> None:
+    click.echo(f"Error: {message}", err=True)
+    raise SystemExit(2)
+
+
+def _raise_application_error(exc: Exception) -> None:
+    message = str(exc)
+    if not message.endswith("."):
+        message = f"{message}."
+    raise click.ClickException(message)
 
 
 def _is_valid_url(url: str) -> bool:
@@ -59,6 +82,54 @@ def _ensure_url_not_duplicate(store: BookmarkStore, url: str) -> None:
 @click.group()
 def main() -> None:
     """Bookmark manager CLI."""
+
+
+@main.command()
+@click.argument("bookmark_id", type=int, metavar="BOOKMARK_ID")
+@click.option("--add", "add_tag", type=str, help="Tag to add.")
+@click.option("--remove", "remove_tag", type=str, help="Tag to remove.")
+def tag(bookmark_id: int, add_tag: str | None, remove_tag: str | None) -> None:
+    """Add or remove a tag on a bookmark."""
+    if add_tag and remove_tag:
+        _raise_usage_error("--add and --remove are mutually exclusive.")
+    if not add_tag and not remove_tag:
+        _raise_usage_error("Provide exactly one of --add or --remove.")
+
+    store = _build_store()
+    if add_tag is not None:
+        normalized = normalize_tag(add_tag)
+        try:
+            existing = store.get(bookmark_id)
+            store.add_tag(bookmark_id, add_tag)
+        except (BookmarkNotFoundError, TagValidationError) as exc:
+            _raise_application_error(exc)
+
+        if normalized in existing.tags:
+            click.echo(f"Bookmark {bookmark_id} already has tag '{normalized}'.")
+        else:
+            click.echo(f"Tagged bookmark {bookmark_id} with '{normalized}'.")
+        return
+
+    normalized = normalize_tag(remove_tag or "")
+    try:
+        store.remove_tag(bookmark_id, remove_tag or "")
+    except (BookmarkNotFoundError, TagNotFoundError, TagValidationError) as exc:
+        _raise_application_error(exc)
+
+    click.echo(f"Removed tag '{normalized}' from bookmark {bookmark_id}.")
+
+
+@main.command()
+def tags() -> None:
+    """List all tags with their bookmark counts."""
+    store = _build_store()
+    tag_counts = store.list_tags()
+    if not tag_counts:
+        click.echo("No tags found.")
+        return
+
+    for tag_name, count in tag_counts:
+        click.echo(f"{tag_name}  {count}")
 
 
 @main.command(name="list")

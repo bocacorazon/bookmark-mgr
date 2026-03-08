@@ -7,7 +7,10 @@ from bookmarkcli.models import (
     Bookmark,
     BookmarkNotFoundError,
     BookmarkValidationError,
+    TagNotFoundError,
+    TagValidationError,
     _MISSING_TYPE,
+    normalize_tag,
 )
 
 
@@ -268,6 +271,41 @@ class BookmarkStore:
         if cursor.rowcount == 0:
             raise BookmarkNotFoundError(f"Bookmark {bookmark_id} not found")
         con.commit()
+
+    def add_tag(self, bookmark_id: int, tag: str) -> Bookmark:
+        normalized_tag = normalize_tag(tag)
+        if not normalized_tag:
+            raise TagValidationError("Tag must not be empty or whitespace")
+
+        bookmark = self.get(bookmark_id)
+        if normalized_tag in bookmark.tags:
+            return bookmark
+
+        return self.update(bookmark_id, tags=[*bookmark.tags, normalized_tag])
+
+    def remove_tag(self, bookmark_id: int, tag: str) -> Bookmark:
+        normalized_tag = normalize_tag(tag)
+        if not normalized_tag:
+            raise TagValidationError("Tag must not be empty or whitespace")
+
+        bookmark = self.get(bookmark_id)
+        if normalized_tag not in bookmark.tags:
+            raise TagNotFoundError(
+                f"Tag '{normalized_tag}' not found on bookmark {bookmark_id}"
+            )
+
+        remaining_tags = [existing for existing in bookmark.tags if existing != normalized_tag]
+        return self.update(bookmark_id, tags=remaining_tags)
+
+    def list_tags(self) -> list[tuple[str, int]]:
+        con = self._require_connection()
+        rows = con.execute("SELECT tags FROM bookmarks WHERE tags != ''").fetchall()
+
+        counts: dict[str, int] = {}
+        for row in rows:
+            for tag in set(self._deserialize_tags(row["tags"])):
+                counts[tag] = counts.get(tag, 0) + 1
+        return sorted(counts.items())
 
     def _require_connection(self) -> sqlite3.Connection:
         if self._con is None:
